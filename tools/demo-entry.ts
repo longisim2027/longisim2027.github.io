@@ -14,7 +14,9 @@ type WorkerMsg =
   | { type: 'reset-done' }
   | { type: 'response'; id: number; text?: string; error?: string };
 
-const worker = new Worker(new URL('backend-worker.js', document.baseURI), { type: 'module' });
+// Resolve from the site root, not the page: deep links like /lab/sessions/<id>
+// load this same page, and a page-relative URL would point inside that path.
+const worker = new Worker(new URL('/backend-worker.js', location.origin), { type: 'module' });
 const pending = new Map<number, { resolve: (r: Response) => void; reject: (e: unknown) => void }>();
 let nextId = 0;
 
