@@ -1,4 +1,4 @@
-// Build the static GitHub Pages demo from a checkout of the PCUB research repo.
+// Build the static LongiSim demo for GitHub Pages from a checkout of the research repo.
 //
 //   node tools/build.mjs [--pcub ../pcub-longitudinal-recommendation-lab] [--python python]
 //
@@ -42,6 +42,19 @@ console.log(`bundle ${bundleFile} (${fileCount} files)`);
 const requireFromFrontend = createRequire(path.join(frontend, 'package.json'));
 const vite = await import(pathToFileURL(requireFromFrontend.resolve('vite')).href);
 const entry = path.join(here, 'demo-main.ts');
+
+// Branding: the demo presents the system as LongiSim. Only the product name in
+// the page title and header changes; "PCUB" as the name of the allocation
+// method is left untouched everywhere else. Each replacement must match
+// exactly once, so an upstream change fails the build instead of being missed.
+const BRAND = 'LongiSim';
+const TAGLINE = 'A Multi-Agent Platform for User Simulation and Longitudinal Evaluation of Recommender Systems';
+const rebrand = (file, text, pairs) =>
+  pairs.reduce((acc, [from, to]) => {
+    if (acc.split(from).length !== 2) throw new Error(`${file}: expected "${from}" exactly once; update tools/build.mjs`);
+    return acc.replace(from, to);
+  }, text);
+
 await vite.build({
   root: frontend,
   configFile: path.join(frontend, 'vite.config.ts'),
@@ -52,12 +65,24 @@ await vite.build({
       name: 'pcub-demo-entry',
       enforce: 'pre',
       resolveId: (id) => (id === '/@pcub-demo-entry' ? entry : null),
+      transform: (code, id) =>
+        id.replaceAll('\\', '/').endsWith('/src/app/AppShell.tsx')
+          ? rebrand('AppShell.tsx', code, [
+              ['aria-label="PCUB home"', `aria-label="${BRAND} home"`],
+              ['tracking-tight">PCUB</span>', `tracking-tight">${BRAND}</span>`],
+            ])
+          : null,
       transformIndexHtml: {
         order: 'pre',
-        handler: (html) => {
-          if (!html.includes('src="/src/main.tsx"')) throw new Error('index.html entry changed; update tools/build.mjs');
-          return html.replace('src="/src/main.tsx"', 'src="/@pcub-demo-entry"');
-        },
+        handler: (html) =>
+          rebrand('index.html', html, [
+            ['src="/src/main.tsx"', 'src="/@pcub-demo-entry"'],
+            ['<title>PCUB — Longitudinal Recommendation Lab</title>', `<title>${BRAND} — Longitudinal Recommendation Lab</title>`],
+            [
+              'content="A research demonstration of the PCUB Longitudinal Multi-Agent Conversational Recommendation System."',
+              `content="${BRAND}: ${TAGLINE}. Interactive research demo running entirely in the browser."`,
+            ],
+          ]),
       },
     },
   ],
@@ -73,6 +98,6 @@ copyFileSync(path.join(out, 'index.html'), path.join(out, '404.html')); // deep 
 writeFileSync(path.join(out, '.nojekyll'), '');
 writeFileSync(
   path.join(out, 'build-info.json'),
-  JSON.stringify({ pcub_repository: 'https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab', pcub_commit: commit, pyodide: PYODIDE_VERSION, backend_bundle: bundleFile, built_at: new Date().toISOString() }, null, 2) + '\n',
+  JSON.stringify({ name: BRAND, research_repository: 'https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab', research_commit: commit, pyodide: PYODIDE_VERSION, backend_bundle: bundleFile, built_at: new Date().toISOString() }, null, 2) + '\n',
 );
 console.log(`done -> ${path.relative(site, out)}`);

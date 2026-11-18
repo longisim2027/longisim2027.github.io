@@ -1,57 +1,97 @@
-# PCUB Longitudinal Recommendation Lab: in-browser demo
+# LongiSim
 
-**Live demo: <https://longisim2027.github.io>**
+**A Multi-Agent Platform for User Simulation and Longitudinal Evaluation of Recommender Systems**
 
-This site hosts an interactive demo of the
-[PCUB Longitudinal Recommendation Lab](https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab).
-It is a research testbed for longitudinal conversational recipe recommendation.
+[**Live demo → longisim2027.github.io**](https://longisim2027.github.io) · [Research repository](https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab)
 
-The demo runs the project's real offline backend **inside your browser**. GitHub Pages serves only static files, so:
+---
 
-- The research frontend is built unchanged from the research repository.
-- The research backend (Python sources and its 321 hash-verified assets, byte for byte) runs in a Web Worker on [Pyodide](https://pyodide.org) (CPython compiled to WebAssembly).
-- A small shim routes the app's `/v1/*` API calls to that worker, which feeds them to the backend's own request handler. Routing, validation, idempotency and error codes are the same code the local server runs.
-- Sessions are stored in a SQLite database in your browser (IndexedDB). They survive a reload. Nothing is sent anywhere, and "Reset demo data" in the banner deletes them.
+## Overview
 
-The first visit downloads about 40 MB (the Python runtime, numpy, pandas, pydantic, pyarrow and the backend bundle). The backend then needs about 20 seconds to verify its assets and load the 10,000-recipe catalog. Later visits use the browser cache.
+Most recommender systems are evaluated one recommendation at a time. In practice, each recommendation changes what the user knows, prefers and is willing to accept next. LongiSim is built to study that longitudinal effect.
 
-## Faithfulness to the local setup
+The platform puts a recommender in a multi-turn conversation with a user, either a person or a synthetic user simulator, and records every recommendation, reaction and forecast along the way. It then evaluates recommendation policies by how their consequences build up over time. It can also compare counterfactual branches: what would have happened if a different policy had been followed from a given turn.
 
-The backend runs in **offline mode**: deterministic policies, the two synthetic simulators, branch comparisons, and the 77 recorded guarded-LLM decision contexts. It makes no live model calls (`mode: offline`, `live_guarded: false`).
+The current testbed uses the food domain: a 10,000-recipe catalog drawn from the HUMMUS / Food.com dataset.
 
-Pyodide ships close but not identical versions of the scientific stack: Python 3.14, numpy 2.4.6, pandas 3.0.2, pydantic 2.12.5 and pyarrow 22, against the release pins of Python 3.12.10, numpy 2.5.1, pandas 3.0.3, pydantic 2.13.4 and pyarrow 24.0.0. To check that this doesn't matter, the same scenario was run against both backends with session ids made deterministic: 41 requests covering human sessions with all four reaction types, both simulators, and branch comparisons with and without the oracle. Every recommended recipe, reaction, prediction set, status and error matched. The only differences were floating-point values in the last binary digit (at most 2.2 × 10⁻¹⁶).
+### Capabilities
 
-Synthetic runs and the conformal tie-break are seeded from each session's random id, so two runs of the same scenario differ by design. This is equally true of the local server.
+- **Longitudinal sessions.** Human-in-the-loop sessions where each turn's reaction (accept, modify/clarify, defer or reject) feeds into the next recommendation.
+- **User simulation.** Two synthetic user simulators that run full sessions without a human participant.
+- **Behaviour forecasting.** A prediction set for the user's next reaction at every turn, with calibrated uncertainty.
+- **Counterfactual evaluation.** Branch comparisons between recommendation policies from a shared starting point, with and without an oracle.
+- **Budgeted allocation.** Allocation methods (equal, greedy, uncertainty-first and PCUB) that decide which hypothetical branch to expand within a fixed budget.
+- **Guarded LLM decisions.** 77 recorded decision contexts from the guarded-LLM policy, replayed offline.
 
-The project's own browser acceptance suite (`frontend/e2e`: human and synthetic flows, branch comparisons, axe accessibility checks and 375 px layouts) was run against this static build.
+## About this demo
 
-For the exact recorded release environment, run the project locally (see its `SETUP.md`).
+This repository hosts a fully interactive demo of LongiSim on GitHub Pages. Pages serves only static files, so the platform's backend runs **inside the visitor's browser**:
 
-## Layout
+| Component | How it runs |
+|---|---|
+| Frontend | The research application, built from the research repository. Only the product name in the header and page title is changed. |
+| Backend | The unmodified Python backend and its 321 hash-verified assets, running in a Web Worker on [Pyodide](https://pyodide.org) (CPython compiled to WebAssembly). |
+| API | A small shim routes the application's `/v1/*` requests to the worker, which passes them to the backend's own request handler. Routing, validation, idempotency and error codes are the same code that runs on the local server. |
+| Storage | A SQLite database stored in the browser (IndexedDB). Sessions survive a reload, nothing leaves the browser, and **Reset demo data** in the footer deletes them. |
+
+**First load:** the first visit downloads about 40 MB (the Python runtime, numpy, pandas, pydantic, pyarrow and the backend bundle). The backend then takes about 20 seconds to verify its assets and load the catalog. Later visits load from the browser cache. A banner at the top of the page shows progress.
+
+**Mode:** the demo runs in offline mode, using deterministic policies, the synthetic simulators, branch comparisons and the recorded guarded-LLM contexts. It makes no live model calls.
+
+## Fidelity to the reference environment
+
+Pyodide ships close but not identical versions of the scientific Python stack:
+
+| Package | Release pin | In-browser (Pyodide 314.0.7) |
+|---|---|---|
+| Python | 3.12.10 | 3.14.2 |
+| numpy | 2.5.1 | 2.4.6 |
+| pandas | 3.0.3 | 3.0.2 |
+| pydantic | 2.13.4 | 2.12.5 |
+| pyarrow | 24.0.0 | 22.0.0 |
+
+The two environments were compared directly:
+
+- **Backend equivalence.** The same scenario was run against the native and the in-browser backends, with session identifiers made deterministic. The run covered 41 requests: human sessions with all four reaction types, both simulators, and branch comparisons with and without the oracle. Every recommended recipe, reaction, prediction set, status code and error matched. Floating-point values differed by at most 2.2 × 10⁻¹⁶, the last binary digit.
+- **Acceptance tests.** The project's browser acceptance suite (`frontend/e2e`) passes in full (32/32) against this static build. It covers human and synthetic flows, branch comparisons, axe accessibility checks and 375 px mobile layouts.
+
+Synthetic runs and the conformal tie-break are seeded from each session's random identifier, so repeated runs of the same scenario differ by design, on the local server as well as here. For the exact recorded release environment, run the project locally (see `SETUP.md` in the research repository).
+
+## Repository layout
 
 | Path | Contents |
 |---|---|
-| `docs/` | The built site, which GitHub Pages serves from here. Generated; don't edit by hand. |
-| `docs/build-info.json` | The research commit, Pyodide version and backend bundle this build came from. |
-| `tools/build.mjs` | Builds `docs/` from a clean research checkout. |
-| `tools/demo-main.ts` | Page entry: imports the shim, then the app's own unmodified `src/main.tsx`. |
-| `tools/demo-entry.ts` | Shim: starts the worker, routes `/v1/*` to it, and adds the demo banner and footer. |
-| `tools/backend-worker.js` | Module worker: loads Pyodide, unpacks the backend, persists SQLite in IndexedDB. |
-| `tools/browser_bridge.py` | Calls the backend's own `Handler.route()` without a socket. |
-| `tools/make_bundle.py` | Packs backend sources and assets into a deterministic zip. |
+| `docs/` | The built site, served by GitHub Pages. Generated by the build; do not edit by hand. |
+| `docs/build-info.json` | The research commit, Pyodide version and backend bundle of the current build. |
+| `tools/build.mjs` | Builds `docs/` from a clean research checkout and applies the LongiSim branding. |
+| `tools/demo-main.ts` | Page entry point. It loads the shim, then the application's own `src/main.tsx`. |
+| `tools/demo-entry.ts` | Shim. It starts the worker, routes `/v1/*` to it, and adds the status banner and footer. |
+| `tools/backend-worker.js` | Module worker. It loads Pyodide, unpacks the backend and persists SQLite in IndexedDB. |
+| `tools/browser_bridge.py` | Calls the backend's own `Handler.route()` without a network socket. |
+| `tools/make_bundle.py` | Packs the backend sources and assets into a deterministic zip archive. |
 
-## Rebuilding
+## Building
 
-Requirements: Node ≥ 22.12, any Python ≥ 3.9 (standard library only), and a clean checkout of the research repository next to this one with `npm ci` run in its `frontend/`.
+**Requirements:**
+- Node.js ≥ 22.12.
+- Python ≥ 3.9 (standard library only).
+- A clean checkout of the research repository next to this one, with `npm ci` already run in its `frontend/` directory.
 
 ```bash
 node tools/build.mjs --pcub ../pcub-longitudinal-recommendation-lab
 ```
 
-The script refuses a checkout with local changes. It runs the research repo's `scripts/verify_publication.py`, writes the backend bundle, builds the frontend with the project's own Vite config, and records the commit in `docs/build-info.json`. Commit `docs/` to publish.
+The build:
+1. Refuses a research checkout that has local changes.
+2. Runs the research repository's `scripts/verify_publication.py`.
+3. Writes the backend bundle.
+4. Builds the frontend with the project's own Vite configuration.
+5. Records the source commit in `docs/build-info.json`.
+
+Commit and push `docs/` to publish.
 
 ## Data and rights
 
-The research code, documentation and artifacts belong to the PCUB project; no open-source license is granted (see the research repository). The demo is published with the project owner's agreement.
+The research code, documentation and artifacts belong to the project authors. No open-source licence is granted; see the research repository. This demo is published with the project owner's agreement.
 
-The recipe catalog is a subset of the HUMMUS / Food.com dataset (Bölz et al., RecSys 2023). Food.com data may only be used for educational or scientific purposes. The backend bundle also contains recorded model outputs. See [`THIRD_PARTY_DATA.md`](https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab/blob/main/THIRD_PARTY_DATA.md) for provenance and terms.
+The recipe catalog is a subset of the HUMMUS / Food.com dataset (Bölz et al., RecSys 2023). Food.com data may be used only for educational or scientific purposes. The backend bundle also contains recorded model outputs. See [`THIRD_PARTY_DATA.md`](https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab/blob/main/THIRD_PARTY_DATA.md) for provenance and terms.
