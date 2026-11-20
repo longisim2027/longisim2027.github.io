@@ -39,8 +39,13 @@ style.textContent = `
   font:14px/1.45 "IBM Plex Sans",system-ui,sans-serif;padding:12px 16px}
 #pcub-demo-footer .about{max-width:1200px;margin:0 auto 8px}
 #pcub-demo-footer .about span{display:block;color:#4a5a70}
+#pcub-demo-footer .sim{max-width:1200px;margin:0 auto 10px;padding-top:8px;border-top:1px solid var(--b-line)}
+#pcub-demo-footer .sim h2{font:600 14px/1.45 "IBM Plex Sans",system-ui,sans-serif;margin:0 0 4px}
+#pcub-demo-footer .sim ol{margin:0;padding-left:22px;list-style:decimal}
+#pcub-demo-footer .sim li{margin:2px 0}
 #pcub-demo-footer .row{max-width:1200px;margin:0 auto;display:flex;gap:6px 16px;align-items:center;flex-wrap:wrap}
 #pcub-demo-footer a,#pcub-demo-footer button{color:var(--b-accent);font:inherit}
+#pcub-demo-footer a{text-decoration:underline;text-underline-offset:2px}
 #pcub-demo-footer button{background:none;border:1px solid var(--b-line);border-radius:6px;padding:2px 10px;cursor:pointer}
 #pcub-demo-footer button:hover{border-color:var(--b-accent)}
 `;
@@ -63,12 +68,31 @@ const footer = document.createElement('div');
 footer.id = 'pcub-demo-footer';
 footer.innerHTML = `<div class="about"><strong>LongiSim</strong>: A Multi-Agent Platform for User Simulation and Longitudinal Evaluation of Recommender Systems.
 <span>Simulated and human users interact with recommendation policies over many turns, so a policy is judged by how its effects build up over time, not by a single recommendation.</span></div>
+<div class="sim"><h2>Run a simulation</h2>
+<ol>
+<li><a href="/lab" data-spa>Live Session</a> → <em>Synthetic simulation</em>: choose a simulated user, a simulator, a policy and a predictor, then <em>Create scenario</em>.</li>
+<li>Step through with <em>Run 1 turn</em> or <em>Run 3 turns with simulator reactions</em>, or <em>Run all remaining turns</em>. Watch forecasts, reactions and the six state variables evolve.</li>
+<li>At a pending turn, <em>Open the branch explorer</em>: compare two policies on hypothetical futures with an allocator, a budget and the synthetic oracle, and read the regret.</li>
+<li>Change one factor (policy, simulator, predictor or allocator) in a new scenario and compare the trajectories.</li>
+</ol></div>
 <div class="row">
+<a href="https://github.com/longisim2027/longisim2027.github.io#running-a-simulation-in-the-browser" target="_blank" rel="noopener">Simulation guide</a>
+<a href="https://github.com/longisim2027/longisim2027.github.io#scripting-experiments" target="_blank" rel="noopener">Scripting experiments</a>
 <a href="https://github.com/Niranjan2003/pcub-longitudinal-recommendation-lab" target="_blank" rel="noopener">Research repository</a>
-<a href="https://github.com/longisim2027/longisim2027.github.io#readme" target="_blank" rel="noopener">How this demo works</a>
 <button type="button" hidden>Reset demo data</button></div>`;
 document.body.append(footer);
 const resetBtn = footer.querySelector('button') as HTMLButtonElement;
+
+// In-app links in the footer navigate through the app's router (which listens
+// to popstate) instead of reloading the page and restarting the backend.
+footer.addEventListener('click', (e) => {
+  const a = (e.target as HTMLElement).closest('a[data-spa]') as HTMLAnchorElement | null;
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  if (location.pathname !== a.pathname) history.pushState(null, '', a.pathname);
+  dispatchEvent(new PopStateEvent('popstate'));
+  scrollTo(0, 0);
+});
 
 const READY_TEXT =
   'The real offline LongiSim backend runs in your browser (Python on WebAssembly). No server and no model calls; sessions stay in this browser.';
